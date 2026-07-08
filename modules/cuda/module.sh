@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-# CUDA toolkit module metadata for envswitch.
+# CUDA toolkit module metadata for EnvSwitch.
 
-ENVSWITCH_CUDA_DEFAULT_VERSION="${ENVSWITCH_CUDA_DEFAULT_VERSION:-12.8}"
+ENVS_CUDA_DEFAULT_VERSION="${ENVS_CUDA_DEFAULT_VERSION:-12.8}"

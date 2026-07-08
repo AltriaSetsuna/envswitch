@@ -4,8 +4,8 @@
 *.swp
 __pycache__/
 
-# Installed toolchains are large local artifacts. Keep only placeholders and
-# metadata in git; install or add versions locally under these directories.
+# Installed compiler and CUDA artifacts are large local files. Keep only
+# placeholders and metadata in git; install or add versions locally here.
 /modules/gcc/versions/*
 !/modules/gcc/versions/.gitkeep
 /modules/cuda/versions/*

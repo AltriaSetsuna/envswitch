@@ -25,7 +25,7 @@ modules/cuda/default -> versions/cuda-12.8
 When enabled, the CUDA module sets:
 
 ```bash
-ENVSWITCH_CUDA_HOME
+ENVS_CUDA_HOME
 CUDA_HOME
 CUDA_PATH
 ```

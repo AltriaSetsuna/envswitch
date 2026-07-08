@@ -1,6 +1,6 @@
-# envswitch
+# EnvSwitch
 
-`envswitch` is a per-user environment switcher for local compiler and CUDA
+EnvSwitch is a per-user environment switcher for local compiler and CUDA
 Toolkit installs. It gives you a `clash on`-style workflow for development
 environments: one command enables the selected environment in the current
 terminal and keeps it enabled for future terminals and SSH reconnects.
@@ -17,8 +17,8 @@ directories; users download or add versions locally.
 ## Quick Start
 
 ```bash
-git clone <repo-url> envswitch
-cd envswitch
+git clone <repo-url> EnvSwitch
+cd EnvSwitch
 
 # One-time shell integration.
 ./bin/envswitch install
@@ -38,7 +38,7 @@ loaded automatically.
 If `envswitch on` prints success but `gcc --version` still shows the system GCC,
 the current shell has not loaded the shell hook yet. Run `source ~/.bashrc` or
 open a new terminal, then run `envswitch on` again. `type envswitch` should say
-that `envswitch` is a shell function.
+that EnvSwitch is a shell function.
 
 To disable the managed environment:
 
@@ -46,7 +46,7 @@ To disable the managed environment:
 envswitch off
 ```
 
-To remove shell integration and disable envswitch:
+To remove shell integration and disable EnvSwitch:
 
 ```bash
 envswitch uninstall
@@ -77,9 +77,9 @@ envswitch default cuda 12.8
 
 `install` adds a managed block to `~/.bashrc` and, when present or when zsh is
 the active shell, `~/.zshrc`. The block adds this repo's `bin/` directory to
-`PATH` and sources the generated profile at `~/.config/envswitch/profile.sh`.
+`PATH` and sources the generated profile at `~/.config/EnvSwitch/profile.sh`.
 
-`uninstall` removes that block, disables envswitch state, removes the generated
+`uninstall` removes that block, disables EnvSwitch state, removes the generated
 profile, and also cleans up the old `scripts/use-default-gcc.sh` startup line
 used by the previous layout.
 
@@ -87,7 +87,7 @@ used by the previous layout.
 
 - GCC downloads conda-forge compiler packages through the Tsinghua conda-forge
   mirror. It uses `micromamba`, then `mamba`, then `conda`, whichever is
-  available first. If none is installed, envswitch bootstraps a private
+  available first. If none is installed, EnvSwitch bootstraps a private
   `micromamba` into the user's cache from the same mirror.
 - CUDA Toolkit downloads the NVIDIA runfile from NVIDIA's China CDN and installs
   only the toolkit into the current user's repo checkout. This path does not
@@ -120,8 +120,9 @@ modules/
 legacy-scripts/
 docs/
 tests/
-.cache/envswitch/      # user cache; created outside the repo by default
 ```
+
+User cache is created outside the repo by default at `~/.cache/EnvSwitch/`.
 
 ## Manual Versions
 

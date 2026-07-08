@@ -1,29 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly ENVSWITCH_NAME="envswitch"
-ENVSWITCH_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-readonly ENVSWITCH_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/envswitch"
-readonly ENVSWITCH_CONFIG_FILE="$ENVSWITCH_CONFIG_HOME/config"
-readonly ENVSWITCH_STATE_FILE="$ENVSWITCH_CONFIG_HOME/state"
-readonly ENVSWITCH_PROFILE_FILE="$ENVSWITCH_CONFIG_HOME/profile.sh"
-readonly ENVSWITCH_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/envswitch"
-readonly ENVSWITCH_BEGIN="# >>> envswitch >>>"
-readonly ENVSWITCH_END="# <<< envswitch <<<"
-readonly ENVSWITCH_TUNA_CONDA_FORGE="https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge"
-readonly ENVSWITCH_TUNA_NVIDIA_CONDA="https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/nvidia"
-readonly ENVSWITCH_TUNA_CUDA_BASE="https://mirrors.tuna.tsinghua.edu.cn/cuda"
-readonly ENVSWITCH_NVIDIA_CUDA_CN_BASE="https://developer.download.nvidia.cn/compute/cuda"
-readonly ENVSWITCH_NVIDIA_CUDA_GLOBAL_BASE="https://developer.download.nvidia.com/compute/cuda"
-readonly ENVSWITCH_MICROMAMBA_PACKAGE="micromamba-2.8.1-0.tar.bz2"
+readonly ENVS_NAME="EnvSwitch"
+ENVS_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+readonly ENVS_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/EnvSwitch"
+readonly ENVS_LEGACY_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/envswitch"
+readonly ENVS_CONFIG_FILE="$ENVS_CONFIG_HOME/config"
+readonly ENVS_STATE_FILE="$ENVS_CONFIG_HOME/state"
+readonly ENVS_PROFILE_FILE="$ENVS_CONFIG_HOME/profile.sh"
+readonly ENVS_LEGACY_PROFILE_FILE="$ENVS_LEGACY_CONFIG_HOME/profile.sh"
+readonly ENVS_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/EnvSwitch"
+readonly ENVS_BEGIN="# >>> EnvSwitch >>>"
+readonly ENVS_END="# <<< EnvSwitch <<<"
+readonly ENVS_LEGACY_BEGIN="# >>> envswitch >>>"
+readonly ENVS_LEGACY_END="# <<< envswitch <<<"
+readonly ENVS_TUNA_CONDA_FORGE="https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge"
+readonly ENVS_TUNA_NVIDIA_CONDA="https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/nvidia"
+readonly ENVS_TUNA_CUDA_BASE="https://mirrors.tuna.tsinghua.edu.cn/cuda"
+readonly ENVS_NVIDIA_CUDA_CN_BASE="https://developer.download.nvidia.cn/compute/cuda"
+readonly ENVS_NVIDIA_CUDA_GLOBAL_BASE="https://developer.download.nvidia.com/compute/cuda"
+readonly ENVS_MICROMAMBA_PACKAGE="micromamba-2.8.1-0.tar.bz2"
 
 usage() {
     cat <<'USAGE'
-envswitch - switch per-user compiler and CUDA toolkit environments
+EnvSwitch - switch per-user compiler and CUDA toolkit environments
 
 Usage:
   envswitch install            Install shell hook for current and future terminals
-  envswitch uninstall          Remove shell hook and disable envswitch
+  envswitch uninstall          Remove shell hook and disable EnvSwitch
   envswitch fetch defaults     Download default GCC and CUDA toolkit versions
   envswitch fetch gcc <ver>    Download GCC version, e.g. 12 or gcc-12
   envswitch fetch cuda <ver>   Download CUDA toolkit version from NVIDIA, e.g. 12.8
@@ -32,7 +36,7 @@ Usage:
   envswitch link gcc <ver> <path>
   envswitch link cuda <ver> <path>
   envswitch on                 Enable default GCC and CUDA toolkit
-  envswitch off                Disable envswitch-managed environment
+  envswitch off                Disable EnvSwitch-managed environment
   envswitch status             Show active/default versions and paths
   envswitch use gcc <version>  Select GCC version, e.g. 12 or gcc-12
   envswitch use cuda <version> Select CUDA toolkit version, e.g. 12.8 or cuda-12.8
@@ -55,11 +59,11 @@ info() {
 }
 
 ensure_config_dir() {
-    mkdir -p "$ENVSWITCH_CONFIG_HOME"
+    mkdir -p "$ENVS_CONFIG_HOME"
 }
 
 ensure_cache_dir() {
-    mkdir -p "$ENVSWITCH_CACHE_HOME/downloads"
+    mkdir -p "$ENVS_CACHE_HOME/downloads"
 }
 
 have_command() {
@@ -81,13 +85,13 @@ normalize_cuda_version() {
 gcc_home_for() {
     local version
     version="$(normalize_gcc_version "$1")"
-    printf '%s/modules/gcc/versions/gcc-%s\n' "$ENVSWITCH_ROOT" "$version"
+    printf '%s/modules/gcc/versions/gcc-%s\n' "$ENVS_ROOT" "$version"
 }
 
 cuda_home_for() {
     local version
     version="$(normalize_cuda_version "$1")"
-    printf '%s/modules/cuda/versions/cuda-%s\n' "$ENVSWITCH_ROOT" "$version"
+    printf '%s/modules/cuda/versions/cuda-%s\n' "$ENVS_ROOT" "$version"
 }
 
 assert_gcc_exists() {
@@ -105,7 +109,7 @@ assert_cuda_exists() {
 
 default_from_symlink() {
     local module="$1"
-    local link="$ENVSWITCH_ROOT/modules/$module/default"
+    local link="$ENVS_ROOT/modules/$module/default"
     if [[ -L "$link" ]]; then
         basename -- "$(readlink -- "$link")" | sed "s/^$module-//"
     else
@@ -118,55 +122,66 @@ default_from_symlink() {
 }
 
 load_config() {
-    local runtime_root="$ENVSWITCH_ROOT"
-    ENVSWITCH_DEFAULT_GCC_VERSION="$(default_from_symlink gcc)"
-    ENVSWITCH_DEFAULT_CUDA_VERSION="$(default_from_symlink cuda)"
+    local runtime_root="$ENVS_ROOT"
+    ENVS_DEFAULT_GCC_VERSION="$(default_from_symlink gcc)"
+    ENVS_DEFAULT_CUDA_VERSION="$(default_from_symlink cuda)"
 
-    if [[ -r "$ENVSWITCH_CONFIG_FILE" ]]; then
+    if [[ -r "$ENVS_CONFIG_FILE" ]]; then
         # shellcheck disable=SC1090
-        source "$ENVSWITCH_CONFIG_FILE"
+        source "$ENVS_CONFIG_FILE"
+    elif [[ -r "$ENVS_LEGACY_CONFIG_HOME/config" ]]; then
+        # shellcheck disable=SC1090
+        source "$ENVS_LEGACY_CONFIG_HOME/config"
     fi
 
-    ENVSWITCH_ROOT="$runtime_root"
-    ENVSWITCH_DEFAULT_GCC_VERSION="${ENVSWITCH_DEFAULT_GCC_VERSION:-12}"
-    ENVSWITCH_DEFAULT_CUDA_VERSION="${ENVSWITCH_DEFAULT_CUDA_VERSION:-12.8}"
+    ENVS_DEFAULT_GCC_VERSION="${ENVS_DEFAULT_GCC_VERSION:-${ENVSWITCH_DEFAULT_GCC_VERSION:-12}}"
+    ENVS_DEFAULT_CUDA_VERSION="${ENVS_DEFAULT_CUDA_VERSION:-${ENVSWITCH_DEFAULT_CUDA_VERSION:-12.8}}"
+
+    ENVS_ROOT="$runtime_root"
 }
 
 load_state() {
-    ENVSWITCH_ENABLED="${ENVSWITCH_ENABLED:-0}"
-    ENVSWITCH_GCC_VERSION="${ENVSWITCH_GCC_VERSION:-}"
-    ENVSWITCH_CUDA_VERSION="${ENVSWITCH_CUDA_VERSION:-}"
+    ENVS_ENABLED="${ENVS_ENABLED:-0}"
+    ENVS_GCC_VERSION="${ENVS_GCC_VERSION:-}"
+    ENVS_CUDA_VERSION="${ENVS_CUDA_VERSION:-}"
 
-    if [[ -r "$ENVSWITCH_STATE_FILE" ]]; then
+    if [[ -r "$ENVS_STATE_FILE" ]]; then
         # shellcheck disable=SC1090
-        source "$ENVSWITCH_STATE_FILE"
+        source "$ENVS_STATE_FILE"
+    elif [[ -r "$ENVS_LEGACY_CONFIG_HOME/state" ]]; then
+        # shellcheck disable=SC1090
+        source "$ENVS_LEGACY_CONFIG_HOME/state"
     fi
+
+    ENVS_ENABLED="${ENVS_ENABLED:-${ENVSWITCH_ENABLED:-0}}"
+    ENVS_GCC_VERSION="${ENVS_GCC_VERSION:-${ENVSWITCH_GCC_VERSION:-}}"
+    ENVS_CUDA_VERSION="${ENVS_CUDA_VERSION:-${ENVSWITCH_CUDA_VERSION:-}}"
 }
 
 write_config() {
     ensure_config_dir
-    cat >"$ENVSWITCH_CONFIG_FILE" <<EOF
-ENVSWITCH_ROOT='$ENVSWITCH_ROOT'
-ENVSWITCH_DEFAULT_GCC_VERSION='${ENVSWITCH_DEFAULT_GCC_VERSION:-12}'
-ENVSWITCH_DEFAULT_CUDA_VERSION='${ENVSWITCH_DEFAULT_CUDA_VERSION:-12.8}'
+    cat >"$ENVS_CONFIG_FILE" <<EOF
+ENVS_ROOT='$ENVS_ROOT'
+ENVS_DEFAULT_GCC_VERSION='${ENVS_DEFAULT_GCC_VERSION:-12}'
+ENVS_DEFAULT_CUDA_VERSION='${ENVS_DEFAULT_CUDA_VERSION:-12.8}'
 EOF
 }
 
 write_state() {
     ensure_config_dir
-    cat >"$ENVSWITCH_STATE_FILE" <<EOF
-ENVSWITCH_ENABLED='${ENVSWITCH_ENABLED:-0}'
-ENVSWITCH_GCC_VERSION='${ENVSWITCH_GCC_VERSION:-}'
-ENVSWITCH_CUDA_VERSION='${ENVSWITCH_CUDA_VERSION:-}'
+    cat >"$ENVS_STATE_FILE" <<EOF
+ENVS_ENABLED='${ENVS_ENABLED:-0}'
+ENVS_GCC_VERSION='${ENVS_GCC_VERSION:-}'
+ENVS_CUDA_VERSION='${ENVS_CUDA_VERSION:-}'
 EOF
 }
 
 write_profile() {
     ensure_config_dir
-    cat >"$ENVSWITCH_PROFILE_FILE" <<'PROFILE'
-# This file is generated by envswitch. Do not edit by hand.
+    cat >"$ENVS_PROFILE_FILE" <<'PROFILE'
+# This file is generated by EnvSwitch. Do not edit by hand.
 
-export ENVSWITCH_SHELL_HOOK_ACTIVE=1
+export ENVS_SHELL_HOOK_ACTIVE=1
 
 __envswitch_remove_path_entries() {
     local var_name="$1"
@@ -183,21 +198,26 @@ __envswitch_remove_path_entries() {
     IFS=':'
     for entry in $current; do
         case "$entry" in
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/* | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/bin | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/lib | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/lib64 | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/lib/pkgconfig | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/lib64/pkgconfig | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/share/pkgconfig | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/lib | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/lib/pkgconfig | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/sysroot/lib | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/sysroot/lib64 | \
-            "$ENVSWITCH_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/sysroot/usr/lib | \
-            "$ENVSWITCH_ROOT"/modules/cuda/versions/*/bin | \
-            "$ENVSWITCH_ROOT"/modules/cuda/versions/*/lib64 | \
-            "$ENVSWITCH_ROOT"/modules/cuda/versions/*/extras/CUPTI/lib64 | \
+            "$ENVS_ROOT"/modules/gcc/versions/* | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/bin | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/lib | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/lib64 | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/lib/pkgconfig | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/lib64/pkgconfig | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/share/pkgconfig | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/lib | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/lib/pkgconfig | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/sysroot/lib | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/sysroot/lib64 | \
+            "$ENVS_ROOT"/modules/gcc/versions/*/x86_64-conda-linux-gnu/sysroot/usr/lib | \
+            "$ENVS_ROOT"/modules/cuda/versions/*/bin | \
+            "$ENVS_ROOT"/modules/cuda/versions/*/lib64 | \
+            "$ENVS_ROOT"/modules/cuda/versions/*/extras/CUPTI/lib64 | \
+            "$ENVS_LEGACY_ROOT"/modules/* | \
+            "$ENVS_LEGACY_ROOT"/modules/*/* | \
+            "$ENVS_LEGACY_ROOT"/modules/*/*/* | \
+            "$ENVS_LEGACY_ROOT"/modules/*/*/*/* | \
+            "$ENVS_LEGACY_ROOT"/modules/*/*/*/*/* | \
             "") ;;
             *)
                 if [ -z "$cleaned" ]; then
@@ -235,7 +255,7 @@ __envswitch_clear_exports() {
         local var_name="$1"
         local value="${!var_name:-}"
         case "$value" in
-            "$ENVSWITCH_ROOT"/modules/*) unset "$var_name" ;;
+            "$ENVS_ROOT"/modules/* | "$ENVS_LEGACY_ROOT"/modules/*) unset "$var_name" ;;
         esac
     }
 
@@ -243,13 +263,19 @@ __envswitch_clear_exports() {
         local var_name="$1"
         local value="${!var_name:-}"
         case "$value" in
-            *"$ENVSWITCH_ROOT"/modules/*) unset "$var_name" ;;
+            *"$ENVS_ROOT"/modules/* | *"$ENVS_LEGACY_ROOT"/modules/*) unset "$var_name" ;;
         esac
     }
 
+    unset ENVS_TOOLCHAIN_ROOT
+    unset ENVS_GCC_HOME
+    unset ENVS_CUDA_HOME
     unset TOOLCHAIN_ROOT
+    unset ENVSWITCH_ROOT
+    unset ENVSWITCH_TOOLCHAIN_ROOT
     unset ENVSWITCH_GCC_HOME
     unset ENVSWITCH_CUDA_HOME
+    unset ENVSWITCH_SHELL_HOOK_ACTIVE
     __envswitch_unset_if_managed CUDA_HOME
     __envswitch_unset_if_managed CUDA_PATH
     __envswitch_unset_if_managed CC
@@ -262,30 +288,31 @@ __envswitch_clear_exports() {
 }
 
 __envswitch_apply() {
-    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}/envswitch"
+    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}/EnvSwitch"
     local config_file="$config_home/config"
     local state_file="$config_home/state"
 
     [ -r "$config_file" ] || return 0
     # shellcheck disable=SC1090
     . "$config_file"
-    [ -n "${ENVSWITCH_ROOT:-}" ] || return 0
+    [ -n "${ENVS_ROOT:-}" ] || return 0
+    ENVS_LEGACY_ROOT="${ENVS_LEGACY_ROOT:-${ENVS_ROOT%/EnvSwitch}/envswitch}"
 
     __envswitch_clear_exports
 
     [ -r "$state_file" ] || return 0
     # shellcheck disable=SC1090
     . "$state_file"
-    [ "${ENVSWITCH_ENABLED:-0}" = "1" ] || return 0
+    [ "${ENVS_ENABLED:-0}" = "1" ] || return 0
 
-    local gcc_version="${ENVSWITCH_GCC_VERSION:-${ENVSWITCH_DEFAULT_GCC_VERSION:-12}}"
-    local cuda_version="${ENVSWITCH_CUDA_VERSION:-${ENVSWITCH_DEFAULT_CUDA_VERSION:-12.8}}"
-    local gcc_home="$ENVSWITCH_ROOT/modules/gcc/versions/gcc-$gcc_version"
-    local cuda_home="$ENVSWITCH_ROOT/modules/cuda/versions/cuda-$cuda_version"
+    local gcc_version="${ENVS_GCC_VERSION:-${ENVS_DEFAULT_GCC_VERSION:-12}}"
+    local cuda_version="${ENVS_CUDA_VERSION:-${ENVS_DEFAULT_CUDA_VERSION:-12.8}}"
+    local gcc_home="$ENVS_ROOT/modules/gcc/versions/gcc-$gcc_version"
+    local cuda_home="$ENVS_ROOT/modules/cuda/versions/cuda-$cuda_version"
 
     if [ -d "$gcc_home" ]; then
-        export TOOLCHAIN_ROOT="$gcc_home"
-        export ENVSWITCH_GCC_HOME="$gcc_home"
+        export ENVS_TOOLCHAIN_ROOT="$gcc_home"
+        export ENVS_GCC_HOME="$gcc_home"
         __envswitch_prepend_path PATH "$gcc_home/bin"
         __envswitch_prepend_path LIBRARY_PATH "$gcc_home/x86_64-conda-linux-gnu/sysroot/usr/lib"
         __envswitch_prepend_path LIBRARY_PATH "$gcc_home/x86_64-conda-linux-gnu/sysroot/lib64"
@@ -306,7 +333,7 @@ __envswitch_apply() {
     fi
 
     if [ -d "$cuda_home" ]; then
-        export ENVSWITCH_CUDA_HOME="$cuda_home"
+        export ENVS_CUDA_HOME="$cuda_home"
         export CUDA_HOME="$cuda_home"
         export CUDA_PATH="$cuda_home"
         __envswitch_prepend_path PATH "$cuda_home/bin"
@@ -318,16 +345,16 @@ __envswitch_apply() {
 __envswitch_apply
 
 envswitch() {
-    ENVSWITCH_SHELL_HOOK_ACTIVE=1 command envswitch "$@"
+    ENVS_SHELL_HOOK_ACTIVE=1 command envswitch "$@"
     local rc=$?
     case "${1:-}" in
         on | off | use | default | install | install-shell | fetch | link)
-            [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/envswitch/profile.sh" ] && \
-                . "${XDG_CONFIG_HOME:-$HOME/.config}/envswitch/profile.sh"
+            [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/EnvSwitch/profile.sh" ] && \
+                . "${XDG_CONFIG_HOME:-$HOME/.config}/EnvSwitch/profile.sh"
             ;;
         uninstall | uninstall-shell)
-            if [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/envswitch/profile.sh" ]; then
-                . "${XDG_CONFIG_HOME:-$HOME/.config}/envswitch/profile.sh"
+            if [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/EnvSwitch/profile.sh" ]; then
+                . "${XDG_CONFIG_HOME:-$HOME/.config}/EnvSwitch/profile.sh"
             elif [ "$(type -t __envswitch_clear_exports 2>/dev/null)" = "function" ]; then
                 __envswitch_clear_exports
             fi
@@ -353,10 +380,10 @@ shell_files() {
 
 hook_block() {
     cat <<EOF
-$ENVSWITCH_BEGIN
-export PATH="$ENVSWITCH_ROOT/bin:\$PATH"
-[ -r "$ENVSWITCH_PROFILE_FILE" ] && source "$ENVSWITCH_PROFILE_FILE"
-$ENVSWITCH_END
+$ENVS_BEGIN
+export PATH="$ENVS_ROOT/bin:\$PATH"
+[ -r "$ENVS_PROFILE_FILE" ] && source "$ENVS_PROFILE_FILE"
+$ENVS_END
 EOF
 }
 
@@ -387,9 +414,13 @@ remove_hook_from_file() {
     [[ -f "$file" ]] || return 0
     local tmp
     tmp="$(mktemp)"
-    awk -v begin="$ENVSWITCH_BEGIN" -v end="$ENVSWITCH_END" '
-        $0 == begin { skipping = 1; next }
-        $0 == end { skipping = 0; next }
+    awk \
+        -v begin="$ENVS_BEGIN" \
+        -v end="$ENVS_END" \
+        -v legacy_begin="$ENVS_LEGACY_BEGIN" \
+        -v legacy_end="$ENVS_LEGACY_END" '
+        $0 == begin || $0 == legacy_begin { skipping = 1; next }
+        $0 == end || $0 == legacy_end { skipping = 0; next }
         skipping != 1 { print }
     ' "$file" >"$tmp"
     mv "$tmp" "$file"
@@ -400,7 +431,7 @@ remove_legacy_hook_from_file() {
     [[ -f "$file" ]] || return 0
     local tmp
     tmp="$(mktemp)"
-    grep -vE "^[[:space:]]*(source|\\.)[[:space:]]+($HOME/tools/(toolchains|envswitch)|$ENVSWITCH_ROOT)/(scripts|legacy-scripts)/use-default-gcc[.]sh[[:space:]]*$" "$file" >"$tmp" || true
+    grep -vE "^[[:space:]]*(source|\\.)[[:space:]]+($HOME/tools/(toolchains|envswitch|EnvSwitch)|$ENVS_ROOT)/(scripts|legacy-scripts)/use-default-gcc[.]sh[[:space:]]*$" "$file" >"$tmp" || true
     mv "$tmp" "$file"
 }
 
@@ -437,6 +468,7 @@ install_shell() {
     load_state
     write_config
     write_profile
+    rm -f "$ENVS_LEGACY_PROFILE_FILE"
 
     local file
     while IFS= read -r file; do
@@ -462,12 +494,12 @@ uninstall_shell() {
         info "removed shell hook: $file"
     done < <(shell_files)
 
-    ENVSWITCH_ENABLED=0
-    ENVSWITCH_GCC_VERSION=''
-    ENVSWITCH_CUDA_VERSION=''
+    ENVS_ENABLED=0
+    ENVS_GCC_VERSION=''
+    ENVS_CUDA_VERSION=''
     write_state
-    rm -f "$ENVSWITCH_PROFILE_FILE"
-    info "disabled envswitch"
+    rm -f "$ENVS_PROFILE_FILE" "$ENVS_LEGACY_PROFILE_FILE"
+    info "disabled EnvSwitch"
 }
 
 install_with_micromamba() {
@@ -489,7 +521,7 @@ install_with_conda() {
 }
 
 envswitch_micromamba() {
-    printf '%s/bin/micromamba\n' "$ENVSWITCH_CACHE_HOME"
+    printf '%s/bin/micromamba\n' "$ENVS_CACHE_HOME"
 }
 
 is_empty_dir() {
@@ -510,14 +542,14 @@ bootstrap_micromamba() {
         return 0
     fi
 
-    package="$ENVSWITCH_CACHE_HOME/downloads/$ENVSWITCH_MICROMAMBA_PACKAGE"
-    url="$ENVSWITCH_TUNA_CONDA_FORGE/linux-64/$ENVSWITCH_MICROMAMBA_PACKAGE"
-    extract_dir="$ENVSWITCH_CACHE_HOME/micromamba-bootstrap"
+    package="$ENVS_CACHE_HOME/downloads/$ENVS_MICROMAMBA_PACKAGE"
+    url="$ENVS_TUNA_CONDA_FORGE/linux-64/$ENVS_MICROMAMBA_PACKAGE"
+    extract_dir="$ENVS_CACHE_HOME/micromamba-bootstrap"
 
     download_file "$url" "$package"
 
     rm -rf "$extract_dir"
-    mkdir -p "$extract_dir" "$ENVSWITCH_CACHE_HOME/bin"
+    mkdir -p "$extract_dir" "$ENVS_CACHE_HOME/bin"
     tar -xjf "$package" -C "$extract_dir" bin/micromamba
 
     if [[ ! -x "$extract_dir/bin/micromamba" ]]; then
@@ -595,13 +627,13 @@ cuda_runfile_url_for() {
     path="$(cuda_runfile_path_for "$version")"
     case "$source" in
         tuna | tsinghua)
-            base="$ENVSWITCH_TUNA_CUDA_BASE"
+            base="$ENVS_TUNA_CUDA_BASE"
             ;;
         official | nvidia | nvidia-cn | cn)
-            base="$ENVSWITCH_NVIDIA_CUDA_CN_BASE"
+            base="$ENVS_NVIDIA_CUDA_CN_BASE"
             ;;
         global | official-global | nvidia-global)
-            base="$ENVSWITCH_NVIDIA_CUDA_GLOBAL_BASE"
+            base="$ENVS_NVIDIA_CUDA_GLOBAL_BASE"
             ;;
         *)
             die "unknown CUDA source: $source. Supported: official, global, tuna"
@@ -638,7 +670,7 @@ install_cuda_with_runfile() {
 
     if [[ -z "$runfile" ]]; then
         filename="$(cuda_runfile_name_for "$version")"
-        runfile="$ENVSWITCH_CACHE_HOME/downloads/$filename"
+        runfile="$ENVS_CACHE_HOME/downloads/$filename"
         url="$(cuda_runfile_url_for "$version" "$source")"
         download_file "$url" "$runfile"
     else
@@ -648,7 +680,7 @@ install_cuda_with_runfile() {
     ensure_install_target_available "$prefix" "CUDA toolkit"
 
     staging="${prefix}.installing.$$"
-    tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/envswitch-cuda.XXXXXX")"
+    tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/EnvSwitch-cuda.XXXXXX")"
     rm -rf "$staging"
     mkdir -p "$(dirname -- "$prefix")" "$staging"
 
@@ -712,7 +744,7 @@ install_gcc() {
 
     install_conda_prefix \
         "$prefix" \
-        -c "$ENVSWITCH_TUNA_CONDA_FORGE" \
+        -c "$ENVS_TUNA_CONDA_FORGE" \
         "gcc_linux-64=${version}.*" \
         "gxx_linux-64=${version}.*" \
         cmake \
@@ -728,7 +760,7 @@ ensure_gcc_command_shims() {
     local bin="$prefix/bin"
 
     [[ -d "$bin" ]] || return 0
-    [[ "$prefix" == "$ENVSWITCH_ROOT"/modules/gcc/versions/gcc-* ]] || return 0
+    [[ "$prefix" == "$ENVS_ROOT"/modules/gcc/versions/gcc-* ]] || return 0
     [[ ! -L "$prefix" ]] || return 0
 
     if [[ ! -e "$bin/gcc" && -x "$bin/x86_64-conda-linux-gnu-gcc" ]]; then
@@ -819,8 +851,8 @@ install_cuda() {
             ensure_install_target_available "$prefix" "CUDA toolkit"
             install_conda_prefix \
                 "$prefix" \
-                -c "$ENVSWITCH_TUNA_NVIDIA_CONDA" \
-                -c "$ENVSWITCH_TUNA_CONDA_FORGE" \
+                -c "$ENVS_TUNA_NVIDIA_CONDA" \
+                -c "$ENVS_TUNA_CONDA_FORGE" \
                 "cuda-toolkit=${version}"
             ;;
         *)
@@ -837,8 +869,8 @@ install_toolchain() {
     load_config
     case "$module" in
         defaults | default)
-            install_gcc "$ENVSWITCH_DEFAULT_GCC_VERSION"
-            install_cuda "$ENVSWITCH_DEFAULT_CUDA_VERSION"
+            install_gcc "$ENVS_DEFAULT_GCC_VERSION"
+            install_cuda "$ENVS_DEFAULT_CUDA_VERSION"
             ;;
         gcc) install_gcc "$version" ;;
         cuda)
@@ -914,16 +946,16 @@ set_default() {
             local gcc_home
             gcc_home="$(gcc_home_for "$version")"
             assert_gcc_exists "$gcc_home"
-            ln -sfn "versions/gcc-$version" "$ENVSWITCH_ROOT/modules/gcc/default"
-            ENVSWITCH_DEFAULT_GCC_VERSION="$version"
+            ln -sfn "versions/gcc-$version" "$ENVS_ROOT/modules/gcc/default"
+            ENVS_DEFAULT_GCC_VERSION="$version"
             ;;
         cuda)
             version="$(normalize_cuda_version "$version")"
             local cuda_home
             cuda_home="$(cuda_home_for "$version")"
             assert_cuda_exists "$cuda_home"
-            ln -sfn "versions/cuda-$version" "$ENVSWITCH_ROOT/modules/cuda/default"
-            ENVSWITCH_DEFAULT_CUDA_VERSION="$version"
+            ln -sfn "versions/cuda-$version" "$ENVS_ROOT/modules/cuda/default"
+            ENVS_DEFAULT_CUDA_VERSION="$version"
             ;;
         *) die "unknown module: $module" ;;
     esac
@@ -944,19 +976,19 @@ use_module() {
         gcc)
             version="$(normalize_gcc_version "$version")"
             assert_gcc_exists "$(gcc_home_for "$version")"
-            ENVSWITCH_GCC_VERSION="$version"
+            ENVS_GCC_VERSION="$version"
             ;;
         cuda)
             version="$(normalize_cuda_version "$version")"
             assert_cuda_exists "$(cuda_home_for "$version")"
-            ENVSWITCH_CUDA_VERSION="$version"
+            ENVS_CUDA_VERSION="$version"
             ;;
         *) die "unknown module: $module" ;;
     esac
 
-    ENVSWITCH_ENABLED=1
-    ENVSWITCH_GCC_VERSION="${ENVSWITCH_GCC_VERSION:-$ENVSWITCH_DEFAULT_GCC_VERSION}"
-    ENVSWITCH_CUDA_VERSION="${ENVSWITCH_CUDA_VERSION:-$ENVSWITCH_DEFAULT_CUDA_VERSION}"
+    ENVS_ENABLED=1
+    ENVS_GCC_VERSION="${ENVS_GCC_VERSION:-$ENVS_DEFAULT_GCC_VERSION}"
+    ENVS_CUDA_VERSION="${ENVS_CUDA_VERSION:-$ENVS_DEFAULT_CUDA_VERSION}"
     write_config
     write_state
     write_profile
@@ -965,27 +997,27 @@ use_module() {
 
 enable_env() {
     load_config
-    ENVSWITCH_ENABLED=1
-    ENVSWITCH_GCC_VERSION="$ENVSWITCH_DEFAULT_GCC_VERSION"
-    ENVSWITCH_CUDA_VERSION="$ENVSWITCH_DEFAULT_CUDA_VERSION"
+    ENVS_ENABLED=1
+    ENVS_GCC_VERSION="$ENVS_DEFAULT_GCC_VERSION"
+    ENVS_CUDA_VERSION="$ENVS_DEFAULT_CUDA_VERSION"
 
-    assert_gcc_exists "$(gcc_home_for "$ENVSWITCH_GCC_VERSION")"
-    ensure_gcc_command_shims "$(gcc_home_for "$ENVSWITCH_GCC_VERSION")"
-    assert_cuda_exists "$(cuda_home_for "$ENVSWITCH_CUDA_VERSION")"
+    assert_gcc_exists "$(gcc_home_for "$ENVS_GCC_VERSION")"
+    ensure_gcc_command_shims "$(gcc_home_for "$ENVS_GCC_VERSION")"
+    assert_cuda_exists "$(cuda_home_for "$ENVS_CUDA_VERSION")"
     write_config
     write_state
     write_profile
-    info "enabled gcc-$ENVSWITCH_GCC_VERSION + cuda-$ENVSWITCH_CUDA_VERSION"
-    if [[ "${ENVSWITCH_SHELL_HOOK_ACTIVE:-}" != "1" ]]; then
+    info "enabled gcc-$ENVS_GCC_VERSION + cuda-$ENVS_CUDA_VERSION"
+    if [[ "${ENVS_SHELL_HOOK_ACTIVE:-}" != "1" ]]; then
         info "current shell was not updated because envswitch is running as an external command"
         info "run: source ~/.bashrc  # or open a new terminal, then run envswitch on"
     fi
 }
 
 disable_env() {
-    ENVSWITCH_ENABLED=0
-    ENVSWITCH_GCC_VERSION=''
-    ENVSWITCH_CUDA_VERSION=''
+    ENVS_ENABLED=0
+    ENVS_GCC_VERSION=''
+    ENVS_CUDA_VERSION=''
     write_state
     write_profile
     info "disabled"
@@ -994,17 +1026,17 @@ disable_env() {
 status() {
     load_config
     load_state
-    local gcc_version="${ENVSWITCH_GCC_VERSION:-$ENVSWITCH_DEFAULT_GCC_VERSION}"
-    local cuda_version="${ENVSWITCH_CUDA_VERSION:-$ENVSWITCH_DEFAULT_CUDA_VERSION}"
+    local gcc_version="${ENVS_GCC_VERSION:-$ENVS_DEFAULT_GCC_VERSION}"
+    local cuda_version="${ENVS_CUDA_VERSION:-$ENVS_DEFAULT_CUDA_VERSION}"
     local gcc_home cuda_home
     gcc_home="$(gcc_home_for "$gcc_version")"
     cuda_home="$(cuda_home_for "$cuda_version")"
 
-    printf 'envswitch root: %s\n' "$ENVSWITCH_ROOT"
-    printf 'state: %s\n' "$([[ "${ENVSWITCH_ENABLED:-0}" = "1" ]] && printf enabled || printf disabled)"
-    printf 'gcc: default=%s selected=%s path=%s\n' "$ENVSWITCH_DEFAULT_GCC_VERSION" "$gcc_version" "$gcc_home"
-    printf 'cuda: default=%s selected=%s path=%s\n' "$ENVSWITCH_DEFAULT_CUDA_VERSION" "$cuda_version" "$cuda_home"
-    printf 'profile: %s\n' "$ENVSWITCH_PROFILE_FILE"
+    printf 'EnvSwitch root: %s\n' "$ENVS_ROOT"
+    printf 'state: %s\n' "$([[ "${ENVS_ENABLED:-0}" = "1" ]] && printf enabled || printf disabled)"
+    printf 'gcc: default=%s selected=%s path=%s\n' "$ENVS_DEFAULT_GCC_VERSION" "$gcc_version" "$gcc_home"
+    printf 'cuda: default=%s selected=%s path=%s\n' "$ENVS_DEFAULT_CUDA_VERSION" "$cuda_version" "$cuda_home"
+    printf 'profile: %s\n' "$ENVS_PROFILE_FILE"
 }
 
 main() {

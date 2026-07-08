@@ -27,8 +27,8 @@ modules/gcc/default -> versions/gcc-12
 When enabled, the GCC module sets:
 
 ```bash
-TOOLCHAIN_ROOT
-ENVSWITCH_GCC_HOME
+ENVS_TOOLCHAIN_ROOT
+ENVS_GCC_HOME
 CC
 CXX
 CMAKE_C_COMPILER
@@ -42,7 +42,7 @@ CMAKE_PREFIX_PATH
 It also prepends:
 
 ```text
-$ENVSWITCH_GCC_HOME/bin
+$ENVS_GCC_HOME/bin
 ```
 
 to `PATH`.
@@ -83,7 +83,7 @@ x86_64-conda-linux-gnu-g++
 
 Use `envswitch fetch gcc 12` to install the default GCC module from the
 Tsinghua conda-forge mirror with micromamba, mamba, or conda. If none of those
-commands exists, envswitch downloads a private micromamba package from the
+commands exists, EnvSwitch downloads a private micromamba package from the
 Tsinghua conda-forge mirror into the user's cache and uses it automatically.
 
 Register an existing compatible GCC prefix without copying it:
