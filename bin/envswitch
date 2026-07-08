@@ -626,7 +626,24 @@ install_cuda_with_runfile() {
     mkdir -p "$(dirname -- "$prefix")" "$staging"
 
     info "installing CUDA toolkit $version from NVIDIA runfile"
-    if ! sh "$runfile" --silent --toolkit --toolkitpath="$staging" --override --tmpdir="$tmpdir"; then
+    info "this can take several minutes while the 5GB+ toolkit is unpacked"
+    sh "$runfile" --silent --toolkit --toolkitpath="$staging" --override --tmpdir="$tmpdir" &
+    local installer_pid="$!"
+    local elapsed=0
+    local size
+
+    while kill -0 "$installer_pid" 2>/dev/null; do
+        sleep 15
+        elapsed=$((elapsed + 15))
+        if [[ -d "$staging" ]]; then
+            size="$(du -sh "$staging" 2>/dev/null | awk '{print $1}')"
+            info "still installing CUDA toolkit... elapsed=${elapsed}s size=${size:-unknown}"
+        else
+            info "still installing CUDA toolkit... elapsed=${elapsed}s"
+        fi
+    done
+
+    if ! wait "$installer_pid"; then
         rm -rf "$staging" "$tmpdir"
         die "CUDA runfile installer failed"
     fi
