@@ -1,0 +1,39 @@
+[module]
+name = "gcc"
+default = "12"
+manager = "conda"
+target = "x86_64-conda-linux-gnu"
+default_channel = "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge"
+
+[versions]
+available = ["11", "12", "14"]
+
+[versions."11"]
+packages = [
+  "gcc_linux-64=11.*",
+  "gxx_linux-64=11.*",
+  "cmake",
+  "make",
+  "ninja",
+  "pkg-config",
+]
+
+[versions."12"]
+packages = [
+  "gcc_linux-64=12.*",
+  "gxx_linux-64=12.*",
+  "cmake",
+  "make",
+  "ninja",
+  "pkg-config",
+]
+
+[versions."14"]
+packages = [
+  "gcc_linux-64=14.*",
+  "gxx_linux-64=14.*",
+  "cmake",
+  "make",
+  "ninja",
+  "pkg-config",
+]

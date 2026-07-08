@@ -1,0 +1,25 @@
+[module]
+name = "cuda"
+default = "12.8"
+manager = "nvidia-runfile"
+default_source = "official"
+
+[versions]
+available = ["12.8"]
+
+[versions."12.8"]
+runfile = "12.8.0/local_installers/cuda_12.8.0_570.86.10_linux.run"
+
+[providers.nvidia-runfile]
+default_base_url = "https://developer.download.nvidia.cn/compute/cuda"
+global_base_url = "https://developer.download.nvidia.com/compute/cuda"
+tuna_base_url = "https://mirrors.tuna.tsinghua.edu.cn/cuda"
+
+[providers.conda]
+packages = [
+  "cuda-toolkit=12.8",
+]
+channels = [
+  "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/nvidia",
+  "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge",
+]

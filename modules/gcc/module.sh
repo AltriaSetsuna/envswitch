@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# GCC module metadata for envswitch.
+
+ENVSWITCH_GCC_DEFAULT_VERSION="${ENVSWITCH_GCC_DEFAULT_VERSION:-12}"
+ENVSWITCH_GCC_COMPILER_PREFIX="${ENVSWITCH_GCC_COMPILER_PREFIX:-x86_64-conda-linux-gnu}"
