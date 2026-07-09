@@ -69,10 +69,16 @@ For build tools, it exports compile/link-time search paths through
 ## Common Commands
 
 ```bash
+envswitch use gcc
 envswitch use gcc 12
 envswitch use gcc 14
+envswitch on gcc
+envswitch off gcc
 envswitch default gcc 12
 ```
+
+Omitting the version from `envswitch use gcc` selects the configured default.
+Changing GCC does not enable, disable, or change CUDA or Python.
 
 The compiler paths use the conda-forge target prefix:
 

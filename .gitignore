@@ -10,3 +10,5 @@ __pycache__/
 !/modules/gcc/versions/.gitkeep
 /modules/cuda/versions/*
 !/modules/cuda/versions/.gitkeep
+/modules/python/versions/*
+!/modules/python/versions/.gitkeep

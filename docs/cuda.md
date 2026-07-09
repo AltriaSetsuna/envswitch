@@ -78,7 +78,14 @@ from silently enabling an incomplete toolkit directory.
 Use:
 
 ```bash
+envswitch fetch cuda
 envswitch fetch cuda 12.8
+envswitch use cuda
 envswitch use cuda 12.8
+envswitch on cuda
+envswitch off cuda
 envswitch default cuda 12.8
 ```
+
+Omitting the version from `fetch cuda` or `use cuda` selects the configured
+default. Changing CUDA does not enable, disable, or change GCC or Python.

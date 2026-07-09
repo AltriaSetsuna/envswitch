@@ -1,18 +1,19 @@
 # EnvSwitch
 
-EnvSwitch is a per-user environment switcher for local compiler and CUDA
-Toolkit installs. It gives you a `clash on`-style workflow for development
-environments: one command enables the selected environment in the current
-terminal and keeps it enabled for future terminals and SSH reconnects.
+EnvSwitch is a per-user environment switcher for local GCC, CUDA Toolkit, and
+Python installs. Each tool has independent enabled and selected-version state,
+while a `clash on`-style global `on`/`off` flow can restore or pause the current
+combination across terminals and SSH reconnects.
 
 The default environment is:
 
 - GCC: `gcc-12`
 - CUDA Toolkit: `cuda-12.8`
+- Python: `python-3.12.12`
 
-Installed GCC and CUDA Toolkit directories are intentionally ignored by git. The
-repository contains the switcher, manifests, docs, tests, and empty placeholder
-directories; users download or add versions locally.
+Installed GCC, CUDA Toolkit, and Python directories are intentionally ignored by
+git. The repository contains the switcher, manifests, docs, tests, and empty
+placeholder directories; users download or add versions locally.
 
 ## Quick Start
 
@@ -27,9 +28,13 @@ source ~/.bashrc
 # Download the default local versions.
 envswitch fetch defaults
 
-# Enable gcc-12 + cuda-12.8 now and in future terminals.
+# Enable all downloaded defaults now and in future terminals.
 envswitch on
 envswitch status
+
+# Or enable only CUDA. GCC and Python keep their current states.
+envswitch off
+envswitch use cuda
 ```
 
 Open a new terminal or reconnect over SSH and the same enabled state will be
@@ -40,11 +45,16 @@ the current shell has not loaded the shell hook yet. Run `source ~/.bashrc` or
 open a new terminal, then run `envswitch on` again. `type envswitch` should say
 that EnvSwitch is a shell function.
 
-To disable the managed environment:
+To disable one tool or all currently enabled tools:
 
 ```bash
+envswitch off cuda
 envswitch off
 ```
+
+Global `off` remembers the enabled combination. A later `envswitch on` restores
+that combination. Tool-specific `use`, `on`, and `off` commands never change the
+state or selected version of other tools.
 
 To remove shell integration and disable EnvSwitch:
 
@@ -61,19 +71,32 @@ envswitch fetch defaults
 envswitch fetch gcc 11
 envswitch fetch gcc 12
 envswitch fetch gcc 14
+envswitch fetch gcc
 envswitch fetch cuda 12.8
+envswitch fetch cuda
 envswitch fetch cuda 12.8 --source global
 envswitch fetch cuda 12.8 --provider conda
+envswitch fetch python
 envswitch link gcc 12 /path/to/gcc-prefix
 envswitch link cuda 12.8 /path/to/cuda-prefix
+envswitch link python 3.12.12 /path/to/python-prefix
 envswitch on
+envswitch on cuda
 envswitch off
+envswitch off cuda
 envswitch status
+envswitch use gcc
 envswitch use gcc 14
+envswitch use cuda
 envswitch use cuda 12.8
+envswitch use python
 envswitch default gcc 12
 envswitch default cuda 12.8
+envswitch default python 3.12.12
 ```
+
+For `fetch <tool>` and `use <tool>`, omitting the version selects that tool's
+configured default.
 
 `install` adds a managed block to `~/.bashrc` and, when present or when zsh is
 the active shell, `~/.zshrc`. The block adds this repo's `bin/` directory to
@@ -92,6 +115,9 @@ used by the previous layout.
 - CUDA Toolkit downloads the NVIDIA runfile from NVIDIA's China CDN and installs
   only the toolkit into the current user's repo checkout. This path does not
   require conda and does not install drivers.
+- Python downloads a pinned `python-build-standalone` archive, verifies its
+  SHA256 checksum, and extracts it without requiring conda or root access. The
+  bundled artifact currently targets Linux x86_64.
 
 For CUDA, use `--source global` to force NVIDIA's global download host,
 `--source tuna` to try the Tsinghua CUDA mirror, or `--provider conda` to use the
@@ -117,6 +143,12 @@ modules/
     versions/
       .gitkeep
       cuda-12.8/     # ignored, local install
+  python/
+    default -> versions/python-3.12.12
+    manifest.toml
+    versions/
+      .gitkeep
+      python-3.12.12/ # ignored, local install
 legacy-scripts/
 docs/
 tests/
@@ -132,6 +164,7 @@ when the toolchain already exists elsewhere:
 ```bash
 envswitch link gcc 12 /path/to/gcc-prefix
 envswitch link cuda 12.8 /path/to/cuda-prefix
+envswitch link python 3.12.12 /path/to/python-prefix
 ```
 
 You can also populate the ignored version directories manually:
@@ -155,4 +188,10 @@ For CUDA, `envswitch` expects a toolkit-style prefix:
 modules/cuda/versions/cuda-<version>/bin
 modules/cuda/versions/cuda-<version>/bin/nvcc
 modules/cuda/versions/cuda-<version>/lib64
+```
+
+For Python, `envswitch` expects:
+
+```text
+modules/python/versions/python-<version>/bin/python3
 ```
