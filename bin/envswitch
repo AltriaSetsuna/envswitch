@@ -17,6 +17,7 @@ readonly ENVS_LEGACY_END="# <<< envswitch <<<"
 readonly ENVS_TUNA_CONDA_FORGE="https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge"
 readonly ENVS_TUNA_NVIDIA_CONDA="https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/nvidia"
 readonly ENVS_TUNA_CUDA_BASE="https://mirrors.tuna.tsinghua.edu.cn/cuda"
+readonly ENVS_TUNA_PYPI="https://pypi.tuna.tsinghua.edu.cn/simple"
 readonly ENVS_NVIDIA_CUDA_CN_BASE="https://developer.download.nvidia.cn/compute/cuda"
 readonly ENVS_NVIDIA_CUDA_GLOBAL_BASE="https://developer.download.nvidia.com/compute/cuda"
 readonly ENVS_MICROMAMBA_PACKAGE="micromamba-2.8.1-0.tar.bz2"
@@ -31,10 +32,12 @@ EnvSwitch - switch per-user GCC, CUDA toolkit, and Python environments
 Usage:
   envswitch install            Install shell hook for current and future terminals
   envswitch uninstall          Remove shell hook and disable EnvSwitch
-  envswitch fetch defaults     Download all default versions
+  envswitch fetch defaults     Download all default versions and Python packages
+  envswitch fetch defaults --no-default-packages
   envswitch fetch gcc [ver]    Download GCC; omitted version uses the default
   envswitch fetch cuda [ver]   Download CUDA; omitted version uses the default
-  envswitch fetch python [ver] Download Python; omitted version uses the default
+  envswitch fetch python [ver] Download Python and default packages
+  envswitch fetch python [ver] --no-default-packages
   envswitch fetch cuda [ver] --source tuna|official|global
   envswitch fetch cuda [ver] --provider conda
   envswitch link gcc <ver> <path>
@@ -1106,10 +1109,54 @@ ensure_python_command_shims() {
     fi
 }
 
+python_default_packages_file() {
+    printf '%s/modules/python/default-packages.txt\n' "$ENVS_ROOT"
+}
+
+install_python_default_packages() {
+    local prefix="$1"
+    local packages_file
+    local index_url="${ENVS_PYPI_INDEX_URL:-$ENVS_TUNA_PYPI}"
+    packages_file="$(python_default_packages_file)"
+
+    [[ -r "$packages_file" ]] || die "Python default package list not found: $packages_file"
+
+    if have_command uv; then
+        info "installing Python default packages with uv"
+        uv pip install \
+            --python "$prefix/bin/python3" \
+            --index-url "$index_url" \
+            -r "$packages_file"
+    else
+        info "uv not found; installing Python default packages with pip"
+        "$prefix/bin/python3" -m pip install \
+            --index-url "$index_url" \
+            -r "$packages_file"
+    fi
+}
+
 install_python() {
     local version="${1:-}"
     [[ -n "$version" ]] || die "usage: envswitch fetch python [version]"
     version="$(normalize_python_version "$version")"
+    shift || true
+
+    local install_default_packages=1
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --no-default-packages | --no-packages)
+                install_default_packages=0
+                shift
+                ;;
+            --default-packages | --packages)
+                install_default_packages=1
+                shift
+                ;;
+            *)
+                die "unknown Python fetch option: $1"
+                ;;
+        esac
+    done
 
     case "$version" in
         3.12.12) ;;
@@ -1122,6 +1169,9 @@ install_python() {
     if [[ -x "$prefix/bin/python3" ]]; then
         ensure_python_command_shims "$prefix"
         info "python-$version already installed: $prefix"
+        if [[ "$install_default_packages" == "1" ]]; then
+            install_python_default_packages "$prefix"
+        fi
         return 0
     fi
 
@@ -1152,6 +1202,9 @@ install_python() {
     mv "$staging" "$prefix"
     ensure_python_command_shims "$prefix"
     info "installed python-$version: $prefix"
+    if [[ "$install_default_packages" == "1" ]]; then
+        install_python_default_packages "$prefix"
+    fi
 }
 
 install_toolchain() {
@@ -1163,7 +1216,7 @@ install_toolchain() {
         defaults | default)
             install_gcc "$ENVS_DEFAULT_GCC_VERSION"
             install_cuda "$ENVS_DEFAULT_CUDA_VERSION"
-            install_python "$ENVS_DEFAULT_PYTHON_VERSION"
+            install_python "$ENVS_DEFAULT_PYTHON_VERSION" "$@"
             ;;
         gcc)
             install_gcc "${1:-$ENVS_DEFAULT_GCC_VERSION}"
@@ -1177,7 +1230,12 @@ install_toolchain() {
             install_cuda "$version" "$@"
             ;;
         python)
-            install_python "${1:-$ENVS_DEFAULT_PYTHON_VERSION}"
+            local version="$ENVS_DEFAULT_PYTHON_VERSION"
+            if [[ $# -gt 0 && "$1" != --* ]]; then
+                version="$1"
+                shift
+            fi
+            install_python "$version" "$@"
             ;;
         *) die "usage: envswitch fetch <defaults|gcc|cuda|python> [version]" ;;
     esac

@@ -7,7 +7,10 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 
 ROOT="$TMP_ROOT/EnvSwitch"
 HOME_DIR="$TMP_ROOT/home"
-mkdir -p "$ROOT" "$HOME_DIR"
+FAKE_BIN="$TMP_ROOT/fake-bin"
+UV_LOG="$TMP_ROOT/uv.log"
+PIP_LOG="$TMP_ROOT/pip.log"
+mkdir -p "$ROOT" "$HOME_DIR" "$FAKE_BIN"
 
 tar \
     --exclude=.git \
@@ -45,21 +48,53 @@ printf 'Cuda compilation tools, release 12.8\n'
 EOF
 cat >"$PYTHON312_HOME/bin/python3" <<'EOF'
 #!/usr/bin/env bash
+if [[ "${1:-}" == "-m" && "${2:-}" == "pip" ]]; then
+    printf '%s\n' "$*" >"${ENVS_TEST_PIP_LOG:?}"
+    exit 0
+fi
 printf 'Python 3.12.12\n'
 EOF
 cat >"$PYTHON312_HOME/bin/pip3" <<'EOF'
 #!/usr/bin/env bash
 printf 'pip test\n'
 EOF
+cat >"$FAKE_BIN/uv" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >"${ENVS_TEST_UV_LOG:?}"
+EOF
 chmod +x \
     "$GCC12_HOME/bin/x86_64-conda-linux-gnu-gcc" \
     "$GCC12_HOME/bin/x86_64-conda-linux-gnu-g++" \
     "$CUDA128_HOME/bin/nvcc" \
     "$PYTHON312_HOME/bin/python3" \
-    "$PYTHON312_HOME/bin/pip3"
+    "$PYTHON312_HOME/bin/pip3" \
+    "$FAKE_BIN/uv"
 
 export HOME="$HOME_DIR"
 export XDG_CONFIG_HOME="$HOME_DIR/.config"
+
+ENVS_TEST_UV_LOG="$UV_LOG" \
+    PATH="$FAKE_BIN:/usr/bin:/bin" \
+    "$ROOT/bin/envswitch" fetch python >/dev/null
+grep -Fq "pip install --python $PYTHON312_HOME/bin/python3" "$UV_LOG"
+grep -Fq -- "-r $ROOT/modules/python/default-packages.txt" "$UV_LOG"
+
+rm -f "$UV_LOG"
+ENVS_TEST_UV_LOG="$UV_LOG" \
+    PATH="$FAKE_BIN:/usr/bin:/bin" \
+    "$ROOT/bin/envswitch" fetch python --no-default-packages >/dev/null
+test ! -e "$UV_LOG"
+
+ENVS_TEST_UV_LOG="$UV_LOG" \
+    PATH="$FAKE_BIN:/usr/bin:/bin" \
+    "$ROOT/bin/envswitch" fetch defaults --no-default-packages >/dev/null
+test ! -e "$UV_LOG"
+
+ENVS_TEST_PIP_LOG="$PIP_LOG" \
+    PATH="/usr/bin:/bin" \
+    "$ROOT/bin/envswitch" fetch python >/dev/null
+grep -Fq -- "-m pip install" "$PIP_LOG"
+grep -Fq -- "-r $ROOT/modules/python/default-packages.txt" "$PIP_LOG"
 
 clean_bash() {
     env -i \

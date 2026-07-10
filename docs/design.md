@@ -103,7 +103,8 @@ The default download sources are:
 - CUDA Toolkit uses NVIDIA's China CDN and NVIDIA's toolkit-only runfile
   installer.
 - Python uses a pinned `python-build-standalone` release and verifies its SHA256
-  before extraction.
+  before extraction. It then installs `modules/python/default-packages.txt`
+  using `uv pip`, with the fetched interpreter's own `pip` as the fallback.
 
 CUDA can also be fetched from NVIDIA's global host with `--source global`, from
 the Tsinghua CUDA mirror with `--source tuna`, or from Tsinghua Anaconda mirrors
@@ -121,3 +122,8 @@ with `--provider conda`.
   enables the default versions that are already installed.
 - `envswitch default <tool> <version>` changes the default but does not
   implicitly change an enabled tool's selected version.
+- `envswitch fetch python` installs the default package list unless
+  `--no-default-packages` is supplied. `fetch defaults` accepts the same option.
+
+The Python package index defaults to the Tsinghua PyPI mirror and can be
+overridden through `ENVS_PYPI_INDEX_URL`.

@@ -1,0 +1,27 @@
+# PDF reading and extraction
+pypdf
+pdfplumber
+pymupdf
+
+# Numerical computing, data analysis, and plotting
+numpy
+pandas
+scipy
+matplotlib
+pillow
+openpyxl
+
+# Testing and code quality
+pytest
+pytest-cov
+hypothesis
+ruff
+
+# Common interactive and utility packages
+ipython
+requests
+beautifulsoup4
+pyyaml
+rich
+tqdm
+typer

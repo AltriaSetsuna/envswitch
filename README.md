@@ -27,6 +27,7 @@ source ~/.bashrc
 
 # Download the default local versions.
 envswitch fetch defaults
+envswitch fetch defaults --no-default-packages
 
 # Enable all downloaded defaults now and in future terminals.
 envswitch on
@@ -77,6 +78,7 @@ envswitch fetch cuda
 envswitch fetch cuda 12.8 --source global
 envswitch fetch cuda 12.8 --provider conda
 envswitch fetch python
+envswitch fetch python --no-default-packages
 envswitch link gcc 12 /path/to/gcc-prefix
 envswitch link cuda 12.8 /path/to/cuda-prefix
 envswitch link python 3.12.12 /path/to/python-prefix
@@ -117,7 +119,14 @@ used by the previous layout.
   require conda and does not install drivers.
 - Python downloads a pinned `python-build-standalone` archive, verifies its
   SHA256 checksum, and extracts it without requiring conda or root access. The
-  bundled artifact currently targets Linux x86_64.
+  bundled artifact currently targets Linux x86_64. After fetching Python,
+  EnvSwitch installs `modules/python/default-packages.txt` through `uv pip` when
+  `uv` is available, or through the fetched Python's own `pip` otherwise.
+
+Default Python packages use the Tsinghua PyPI mirror. Set
+`ENVS_PYPI_INDEX_URL` to override the package index. Pass
+`--no-default-packages` to `fetch python` or `fetch defaults` to install only
+the interpreter.
 
 For CUDA, use `--source global` to force NVIDIA's global download host,
 `--source tuna` to try the Tsinghua CUDA mirror, or `--provider conda` to use the
@@ -145,6 +154,7 @@ modules/
       cuda-12.8/     # ignored, local install
   python/
     default -> versions/python-3.12.12
+    default-packages.txt
     manifest.toml
     versions/
       .gitkeep
